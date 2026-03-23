@@ -1,6 +1,6 @@
 from rest_framework import generics, status
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, SAFE_METHODS
 from rest_framework.exceptions import ValidationError
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
@@ -40,6 +40,30 @@ class CampaignListView(generics.ListAPIView):
         return Campaign.objects.filter(
             members__user=self.request.user
         )
+
+
+class CampaignDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    GET    → access for Campaign members
+    PATCH  → only DM
+    DELETE → only DM
+    """
+
+    serializer_class = CampaignSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Campaign.objects.filter(
+            members__user=self.request.user
+        )
+
+    def get_permissions(self):
+        # Read-only operations (GET, HEAD, OPTIONS)
+        if self.request.method in SAFE_METHODS:
+            return [IsAuthenticated()]
+
+        # Write operations (PATCH, DELETE)
+        return [IsAuthenticated(), IsCampaignDM()]
 
 
 class CampaignInviteView(APIView):

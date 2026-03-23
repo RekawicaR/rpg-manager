@@ -212,3 +212,99 @@ class CampaignPlayerTests(APITestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["detail"], "Invite expired")
+
+
+class CampaignDetailTests(APITestCase):
+
+    def setUp(self):
+        self.dm = User.objects.create_user(
+            username="testuser1",
+            email="test1@example.com",
+            password="Test1Password123"
+        )
+
+        self.player = User.objects.create_user(
+            username="testuser2",
+            email="test2@example.com",
+            password="Test2Password123"
+        )
+
+        self.campaign = Campaign.objects.create(
+            name="Test",
+            description="desc",
+            created_by=self.dm
+        )
+
+        CampaignMembership.objects.create(
+            user=self.dm,
+            campaign=self.campaign,
+            role="DM"
+        )
+
+        CampaignMembership.objects.create(
+            user=self.player,
+            campaign=self.campaign,
+            role="PLAYER"
+        )
+
+    def test_player_can_get_campaign(self):
+
+        self.client.force_authenticate(user=self.player)
+
+        response = self.client.get(
+            f"/api/campaigns/{self.campaign.id}/"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["id"], self.campaign.id)
+        self.assertEqual(response.data["name"], self.campaign.name)
+        self.assertEqual(
+            response.data["description"], self.campaign.description)
+
+    def test_dm_can_update_campaign(self):
+
+        self.client.force_authenticate(user=self.dm)
+
+        response = self.client.patch(
+            f"/api/campaigns/{self.campaign.id}/",
+            {"name": "Updated"}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.campaign.refresh_from_db()
+        self.assertEqual(self.campaign.name, "Updated")
+
+    def test_player_cannot_update_campaign(self):
+
+        self.client.force_authenticate(user=self.player)
+
+        response = self.client.patch(
+            f"/api/campaigns/{self.campaign.id}/",
+            {"name": "Hacked"}
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.campaign.refresh_from_db()
+        self.assertEqual(self.campaign.name, "Test")
+
+    def test_player_cannot_delete_campaign(self):
+
+        self.client.force_authenticate(user=self.player)
+
+        response = self.client.delete(
+            f"/api/campaigns/{self.campaign.id}/"
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(Campaign.objects.count(), 1)
+
+    def test_dm_can_delete_campaign(self):
+
+        self.client.force_authenticate(user=self.dm)
+
+        response = self.client.delete(
+            f"/api/campaigns/{self.campaign.id}/"
+        )
+
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(Campaign.objects.count(), 0)
