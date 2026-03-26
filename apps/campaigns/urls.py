@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import CampaignCreateView, CampaignListView, CampaignAcceptInviteView, CampaignInviteView, CampaignDetailView
+from .views import CampaignCreateView, CampaignListView, CampaignAcceptInviteView, CampaignInviteView, CampaignDetailView, CampaignSourcesView
 
 urlpatterns = [
     path("", CampaignListView.as_view()),
@@ -9,4 +9,5 @@ urlpatterns = [
     path("invites/<uuid:token>/accept/",
          CampaignAcceptInviteView.as_view(), name="campaign-invite-accept"),
     path("<int:pk>/", CampaignDetailView.as_view()),
+    path("<int:campaign_id>/sources/", CampaignSourcesView.as_view()),
 ]

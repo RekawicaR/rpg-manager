@@ -7,9 +7,10 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.urls import reverse
 from datetime import timedelta
-from .permissions import IsCampaignDM
+from .permissions import IsCampaignDM, IsCampaignMember
 from .models import Campaign, CampaignMembership, CampaignInvite
-from .serializers import CampaignSerializer
+from .serializers import CampaignSerializer, CampaignSourceUpdateSerializer
+from apps.compendium.serializers.source import SourceSerializer
 
 
 class CampaignCreateView(generics.CreateAPIView):
@@ -113,3 +114,45 @@ class CampaignAcceptInviteView(APIView):
             "message": f"Joined campaign {invite.campaign.name} as Player.",
             "joined": created
         }, status=status_code)
+
+
+class CampaignSourcesView(APIView):
+    """
+    Endpoint for getting and updating list of Sources in Campaign
+    GET: every Campaign member
+    PUT: only DM
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get_campaign(self, campaign_id):
+        return get_object_or_404(Campaign, id=campaign_id)
+
+    def get(self, request, campaign_id):
+        campaign = self.get_campaign(campaign_id)
+        self.check_object_permissions(request, campaign)
+
+        sources = campaign.sources.all()
+        return Response(SourceSerializer(sources, many=True).data)
+
+    def put(self, request, campaign_id):
+        campaign = self.get_campaign(campaign_id)
+
+        self.check_object_permissions(request, campaign)
+
+        serializer = CampaignSourceUpdateSerializer(
+            instance=campaign,
+            data=request.data
+        )
+        serializer.is_valid(raise_exception=True)
+
+        serializer.save()
+
+        return Response(SourceSerializer(campaign.sources.all(), many=True).data)
+
+    def get_permissions(self):
+
+        if self.request.method == "GET":
+            return [IsAuthenticated(), IsCampaignMember()]
+
+        return [IsAuthenticated(), IsCampaignDM()]

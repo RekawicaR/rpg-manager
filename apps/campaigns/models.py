@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
+from apps.compendium.models.source import Source
 import uuid
 
 
@@ -17,6 +18,12 @@ class Campaign(models.Model):
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
+
+    sources = models.ManyToManyField(
+        Source,
+        through="CampaignSource",
+        related_name="campaigns"
+    )
 
     def __str__(self):
         return self.name
@@ -87,3 +94,20 @@ class CampaignInvite(models.Model):
 
     def __str__(self):
         return f"Invite to {self.campaign.name}"
+
+
+class CampaignSource(models.Model):
+
+    campaign = models.ForeignKey(
+        Campaign,
+        on_delete=models.CASCADE,
+        related_name="enabled_sources"
+    )
+
+    source = models.ForeignKey(
+        Source,
+        on_delete=models.CASCADE
+    )
+
+    class Meta:
+        unique_together = ("campaign", "source")

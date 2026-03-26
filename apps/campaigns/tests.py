@@ -4,7 +4,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.utils import timezone
 from django.urls import reverse
 from datetime import timedelta
-from apps.campaigns.models import Campaign, CampaignMembership, CampaignInvite
+from apps.campaigns.models import Campaign, CampaignMembership, CampaignInvite, CampaignSource
+from apps.compendium.models.source import Source
 
 
 User = get_user_model()
@@ -308,3 +309,118 @@ class CampaignDetailTests(APITestCase):
 
         self.assertEqual(response.status_code, 204)
         self.assertEqual(Campaign.objects.count(), 0)
+
+
+class CampaignSourceTests(APITestCase):
+
+    def setUp(self):
+
+        self.dm = User.objects.create_user(username="dm", password="pass")
+        self.player = User.objects.create_user(
+            username="player", password="pass")
+
+        self.campaign = Campaign.objects.create(
+            name="Test",
+            description="desc",
+            created_by=self.dm
+        )
+
+        CampaignMembership.objects.create(
+            user=self.dm,
+            campaign=self.campaign,
+            role="DM"
+        )
+
+        CampaignMembership.objects.create(
+            user=self.player,
+            campaign=self.campaign,
+            role="PLAYER"
+        )
+
+        self.source1 = Source.objects.create(
+            code="PHB", name="Players Handbook")
+        self.source2 = Source.objects.create(
+            code="DMG", name="Dungeon Masters Guide")
+
+    def test_dm_can_update_sources(self):
+
+        self.client.force_authenticate(user=self.dm)
+
+        response = self.client.put(
+            f"/api/campaigns/{self.campaign.id}/sources/",
+            {"source_ids": [self.source1.id, self.source2.id]},
+            format="json"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            set(self.campaign.sources.values_list('id', flat=True)),
+            {self.source1.id, self.source2.id}
+        )
+
+    def test_dm_can_clear_sources(self):
+        CampaignSource.objects.bulk_create([
+            CampaignSource(campaign=self.campaign, source=self.source1),
+            CampaignSource(campaign=self.campaign, source=self.source2),
+        ])
+
+        self.client.force_authenticate(user=self.dm)
+        response = self.client.put(
+            f"/api/campaigns/{self.campaign.id}/sources/",
+            {"source_ids": []},
+            format="json"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.campaign.sources.count(), 0)
+
+    def test_player_cannot_update_sources(self):
+
+        self.client.force_authenticate(user=self.player)
+
+        response = self.client.put(
+            f"/api/campaigns/{self.campaign.id}/sources/",
+            {"source_ids": [self.source1.id]},
+            format="json"
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(self.campaign.sources.count(), 0)
+
+    def test_member_can_get_sources(self):
+
+        CampaignSource.objects.create(
+            campaign=self.campaign,
+            source=self.source1
+        )
+
+        self.client.force_authenticate(user=self.player)
+
+        response = self.client.get(
+            f"/api/campaigns/{self.campaign.id}/sources/"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["id"], self.source1.id)
+
+    def test_dm_can_get_sources(self):
+        CampaignSource.objects.create(
+            campaign=self.campaign, source=self.source2)
+
+        self.client.force_authenticate(user=self.dm)
+        response = self.client.get(
+            f"/api/campaigns/{self.campaign.id}/sources/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["id"], self.source2.id)
+
+    def test_non_member_cannot_get_sources(self):
+        outsider = User.objects.create_user(
+            username="outsider", password="pass")
+        self.client.force_authenticate(user=outsider)
+
+        response = self.client.get(
+            f"/api/campaigns/{self.campaign.id}/sources/")
+        self.assertEqual(response.status_code, 403)

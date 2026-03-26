@@ -1,7 +1,8 @@
 # RPG Campaign Manager API
 
 A Django REST API project for managing Dungeons & Dragons campaigns.  
-The project includes authentication, campaign management, and an invite-based system for joining campaigns.
+The project includes authentication, campaign management, and an invite-based system for joining campaigns,
+and flexible source management for campaigns.
 
 ---
 
@@ -11,6 +12,8 @@ The project includes authentication, campaign management, and an invite-based sy
 - Campaign management
 - Role-based access (DM / Player)
 - Invite system with expiring links
+- CampaignSources: control which Compendium sources are available per campaign
+- DM permissions to update, delete, or modify campaigns
 - PostgreSQL integration
 - Automated tests
 
@@ -75,6 +78,11 @@ The project includes authentication, campaign management, and an invite-based sy
 | GET    | /api/campaigns/                        | List user campaigns                     |
 | POST   | /api/campaigns/{id}/invite/            | Generate invite link (DM only)          |
 | POST   | /api/campaigns/invites/{token}/accept/ | Join campaign via invite                |
+| GET    | /api/campaigns/{id}/                   | Retrieve campaign details (members)     |
+| PATCH  | /api/campaigns/{id}/                   | Update campaign (DM only)               |
+| DELETE | /api/campaigns/{id}/                   | Delete campaign (DM only)               |
+| GET    | /api/campaigns/{id}/sources/           | List allowed Sources for campaign       |
+| PUT    | /api/campaigns/{id}/sources/           | Update allowed Sources (DM only)        |
 
 ---
 
@@ -83,6 +91,15 @@ The project includes authentication, campaign management, and an invite-based sy
 - Users join campaigns as `Player`
 - Roles are stored in `CampaignMembership`
 - A user can belong to multiple campaigns but only once per campaign
+
+---
+
+## Campaign & Sources
+- Each campaign has a set of allowed sources (books, expansions, etc.)
+- DM can add/remove sources via the PUT endpoint
+- Sources are stored in Source model (code + name)
+- Players can only view the sources
+- Updating with an empty list removes all sources from the campaign
 
 ---
 
@@ -112,6 +129,8 @@ Tests currently cover:
 - Joining campaign via invite
 - Idempotent invite usage
 - Expired invite
+- Campaign GET, PATCH, DELETE with DM permissions
+- CampaignSource GET and PUT (DM update, member view, non-member forbidden)
 
 ---
 
