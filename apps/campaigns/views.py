@@ -8,8 +8,8 @@ from django.utils import timezone
 from django.urls import reverse
 from datetime import timedelta
 from .permissions import IsCampaignDM, IsCampaignMember
-from .models import Campaign, CampaignMembership, CampaignInvite
-from .serializers import CampaignSerializer, CampaignSourceUpdateSerializer
+from .models import Campaign, CampaignMembership, CampaignInvite, CampaignItemRule
+from .serializers import CampaignSerializer, CampaignSourceUpdateSerializer, CampaignItemRuleCreateSerializer, CampaignItemRuleSerializer
 from apps.compendium.serializers.source import SourceSerializer
 
 
@@ -31,7 +31,7 @@ class CampaignCreateView(generics.CreateAPIView):
 
 
 class CampaignListView(generics.ListAPIView):
-    '''Return all campaings in which the user that sends the request is a member.'''
+    '''Return all campaigns in which the user that sends the request is a member.'''
 
     serializer_class = CampaignSerializer
     permission_classes = [IsAuthenticated]
@@ -52,6 +52,9 @@ class CampaignDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     serializer_class = CampaignSerializer
     permission_classes = [IsAuthenticated]
+
+    lookup_field = "id"
+    lookup_url_kwarg = "campaign_id"
 
     def get_queryset(self):
         return Campaign.objects.filter(
@@ -156,3 +159,60 @@ class CampaignSourcesView(APIView):
             return [IsAuthenticated(), IsCampaignMember()]
 
         return [IsAuthenticated(), IsCampaignDM()]
+
+
+class CampaignItemRuleListCreateView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def get_campaign(self, campaign_id):
+        return get_object_or_404(Campaign, id=campaign_id)
+
+    def get_permissions(self):
+
+        if self.request.method == "GET":
+            return [IsAuthenticated(), IsCampaignMember()]
+
+        return [IsAuthenticated(), IsCampaignDM()]
+
+    def get(self, request, campaign_id):
+
+        campaign = self.get_campaign(campaign_id)
+        self.check_object_permissions(request, campaign)
+
+        rules = campaign.item_rules.all()
+
+        return Response(
+            CampaignItemRuleSerializer(rules, many=True).data
+        )
+
+    def post(self, request, campaign_id):
+
+        campaign = self.get_campaign(campaign_id)
+        self.check_object_permissions(request, campaign)
+
+        serializer = CampaignItemRuleCreateSerializer(
+            data=request.data,
+            context={"campaign": campaign}
+        )
+        serializer.is_valid(raise_exception=True)
+
+        rule = serializer.save()
+
+        return Response(
+            CampaignItemRuleSerializer(rule).data,
+            status=201
+        )
+
+
+class CampaignItemRuleDeleteView(generics.DestroyAPIView):
+
+    serializer_class = CampaignItemRuleSerializer
+    permission_classes = [IsAuthenticated, IsCampaignDM]
+
+    lookup_field = "id"
+    lookup_url_kwarg = "rule_id"
+
+    def get_queryset(self):
+        campaign = get_object_or_404(Campaign, id=self.kwargs["campaign_id"])
+        return CampaignItemRule.objects.filter(campaign=campaign)

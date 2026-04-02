@@ -1,5 +1,5 @@
 """
-URL configuration for rpg_campain_manager project.
+URL configuration for rpg_campaign_manager project.
 
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/4.2/topics/http/urls/
@@ -22,4 +22,5 @@ urlpatterns = [
     path("api/", include("apps.core.urls")),
     path("api/auth/", include("apps.accounts.urls")),
     path("api/campaigns/", include("apps.campaigns.urls")),
+    path("api/spells/", include("apps.compendium.urls"))
 ]

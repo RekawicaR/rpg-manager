@@ -1,6 +1,8 @@
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
+from django.contrib.contenttypes.models import ContentType
+from django.contrib.contenttypes.fields import GenericForeignKey
 from apps.compendium.models.source import Source
 import uuid
 
@@ -111,3 +113,29 @@ class CampaignSource(models.Model):
 
     class Meta:
         unique_together = ("campaign", "source")
+
+
+class CampaignItemRule(models.Model):
+    """
+    Rules for allowing or blocking specific Compendium Items (Spell, Class, etc.) in a Campaign.
+    """
+
+    class RuleType(models.TextChoices):
+        ALLOW = "ALLOW"
+        BLOCK = "BLOCK"
+
+    campaign = models.ForeignKey(
+        Campaign,
+        on_delete=models.CASCADE,
+        related_name="item_rules"
+    )
+
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveIntegerField()
+
+    item = GenericForeignKey("content_type", "object_id")
+
+    rule_type = models.CharField(max_length=10, choices=RuleType.choices)
+
+    class Meta:
+        unique_together = ("campaign", "content_type", "object_id")

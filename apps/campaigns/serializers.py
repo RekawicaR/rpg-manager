@@ -1,7 +1,9 @@
 from django.db import transaction
 from rest_framework import serializers
-from .models import Campaign, CampaignSource
+from django.contrib.contenttypes.models import ContentType
+from .models import Campaign, CampaignSource, CampaignItemRule
 from apps.compendium.models.source import Source
+from apps.compendium.services import get_compendium_models
 
 
 class CampaignSerializer(serializers.ModelSerializer):
@@ -57,3 +59,61 @@ class CampaignSourceUpdateSerializer(serializers.Serializer):
                 "Duplicate sources are not allowed.")
 
         return value
+
+
+class CampaignItemRuleCreateSerializer(serializers.Serializer):
+    '''CampaignItemRule Input serializer.'''
+
+    content_type = serializers.CharField()
+    object_id = serializers.IntegerField()
+    rule_type = serializers.ChoiceField(
+        choices=CampaignItemRule.RuleType.choices
+    )
+
+    def validate(self, data):
+
+        # To not add CompendiumItems for validate every time a new type of CompendiumItem is added
+        # this Auto-discovery feature is used to get all CompendiumItem from Compendium app
+        model_map = get_compendium_models()
+
+        model_class = model_map.get(data["content_type"].lower().strip())
+
+        if not model_class:
+            raise serializers.ValidationError("Invalid content type")
+
+        ct = ContentType.objects.get_for_model(
+            model_class,
+            for_concrete_model=False
+        )
+
+        # check if object exists
+        if not model_class.objects.filter(id=data["object_id"]).exists():
+            raise serializers.ValidationError("Item does not exist")
+
+        data["content_type_obj"] = ct
+
+        return data
+
+    def create(self, validated_data):
+
+        campaign = self.context["campaign"]
+
+        return CampaignItemRule.objects.update_or_create(
+            campaign=campaign,
+            content_type=validated_data["content_type_obj"],
+            object_id=validated_data["object_id"],
+            defaults={"rule_type": validated_data["rule_type"]}
+        )[0]
+
+
+class CampaignItemRuleSerializer(serializers.ModelSerializer):
+    '''CampaignItemRule Output serializer.'''
+
+    content_type = serializers.SerializerMethodField()
+
+    def get_content_type(self, obj):
+        return obj.content_type.model
+
+    class Meta:
+        model = CampaignItemRule
+        fields = ["id", "content_type", "object_id", "rule_type"]
