@@ -4,8 +4,10 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.utils import timezone
 from django.urls import reverse
 from datetime import timedelta
-from apps.campaigns.models import Campaign, CampaignMembership, CampaignInvite, CampaignSource
+from django.contrib.contenttypes.models import ContentType
+from apps.campaigns.models import Campaign, CampaignMembership, CampaignInvite, CampaignSource, CampaignItemRule
 from apps.compendium.models.source import Source
+from apps.compendium.models.spell import Spell
 
 
 User = get_user_model()
@@ -423,4 +425,216 @@ class CampaignSourceTests(APITestCase):
 
         response = self.client.get(
             f"/api/campaigns/{self.campaign.id}/sources/")
+        self.assertEqual(response.status_code, 403)
+
+
+class CampaignItemRuleTests(APITestCase):
+
+    def setUp(self):
+
+        self.dm = User.objects.create_user(username="dm", password="pass")
+        self.player = User.objects.create_user(
+            username="player",
+            password="pass"
+        )
+        self.outsider = User.objects.create_user(
+            username="outsider",
+            password="pass"
+        )
+
+        self.campaign = Campaign.objects.create(
+            name="Test",
+            description="desc",
+            created_by=self.dm
+        )
+
+        CampaignMembership.objects.create(
+            user=self.dm,
+            campaign=self.campaign,
+            role="DM"
+        )
+
+        CampaignMembership.objects.create(
+            user=self.player,
+            campaign=self.campaign,
+            role="PLAYER"
+        )
+
+        self.source = Source.objects.create(
+            code="PHB", name="Players Handbook")
+
+        self.spell = Spell.objects.create(
+            name="Fireball",
+            source=self.source,
+            spell_level=3,
+            casting_type="ACTION",
+            range_type="DISTANCE",
+            range_value=60,
+            range_unit="FT",
+            duration_type="INSTANT",
+            school="EVOC",
+            description="Boom"
+        )
+
+        self.ct = ContentType.objects.get_for_model(Spell)
+
+    def test_create_rule_as_dm(self):
+
+        self.client.force_authenticate(self.dm)
+
+        url = f"/api/campaigns/{self.campaign.id}/rules/"
+
+        data = {
+            "content_type": "spell",
+            "object_id": self.spell.id,
+            "rule_type": "ALLOW"
+        }
+
+        response = self.client.post(url, data)
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(CampaignItemRule.objects.count(), 1)
+
+        rule = CampaignItemRule.objects.first()
+        self.assertEqual(rule.rule_type, "ALLOW")
+
+    def test_create_rule_as_player_forbidden(self):
+
+        self.client.force_authenticate(self.player)
+
+        url = f"/api/campaigns/{self.campaign.id}/rules/"
+
+        data = {
+            "content_type": "spell",
+            "object_id": self.spell.id,
+            "rule_type": "ALLOW"
+        }
+
+        response = self.client.post(url, data)
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(CampaignItemRule.objects.count(), 0)
+
+    def test_create_rule_invalid_content_type(self):
+
+        self.client.force_authenticate(self.dm)
+
+        url = f"/api/campaigns/{self.campaign.id}/rules/"
+
+        data = {
+            "content_type": "invalid",
+            "object_id": self.spell.id,
+            "rule_type": "ALLOW"
+        }
+
+        response = self.client.post(url, data)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(CampaignItemRule.objects.count(), 0)
+
+    def test_create_rule_non_existing_object(self):
+
+        self.client.force_authenticate(self.dm)
+
+        url = f"/api/campaigns/{self.campaign.id}/rules/"
+
+        data = {
+            "content_type": "spell",
+            "object_id": 9999,
+            "rule_type": "ALLOW"
+        }
+
+        response = self.client.post(url, data)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(CampaignItemRule.objects.count(), 0)
+
+    def test_create_rule_updates_existing(self):
+
+        CampaignItemRule.objects.create(
+            campaign=self.campaign,
+            content_type=self.ct,
+            object_id=self.spell.id,
+            rule_type="BLOCK"
+        )
+
+        self.client.force_authenticate(self.dm)
+
+        url = f"/api/campaigns/{self.campaign.id}/rules/"
+
+        data = {
+            "content_type": "spell",
+            "object_id": self.spell.id,
+            "rule_type": "ALLOW"
+        }
+
+        response = self.client.post(url, data)
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(CampaignItemRule.objects.count(), 1)
+
+        rule = CampaignItemRule.objects.first()
+        self.assertEqual(rule.rule_type, "ALLOW")
+
+    def test_list_rules_as_member(self):
+
+        CampaignItemRule.objects.create(
+            campaign=self.campaign,
+            content_type=self.ct,
+            object_id=self.spell.id,
+            rule_type="ALLOW"
+        )
+
+        self.client.force_authenticate(self.player)
+
+        url = f"/api/campaigns/{self.campaign.id}/rules/"
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+
+    def test_list_rules_as_outsider_forbidden(self):
+
+        self.client.force_authenticate(self.outsider)
+
+        url = f"/api/campaigns/{self.campaign.id}/rules/"
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_delete_rule_as_dm(self):
+
+        rule = CampaignItemRule.objects.create(
+            campaign=self.campaign,
+            content_type=self.ct,
+            object_id=self.spell.id,
+            rule_type="ALLOW"
+        )
+
+        self.client.force_authenticate(self.dm)
+
+        url = f"/api/campaigns/{self.campaign.id}/rules/{rule.id}/"
+
+        response = self.client.delete(url)
+
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(CampaignItemRule.objects.count(), 0)
+
+    def test_delete_rule_as_player_forbidden(self):
+
+        rule = CampaignItemRule.objects.create(
+            campaign=self.campaign,
+            content_type=self.ct,
+            object_id=self.spell.id,
+            rule_type="ALLOW"
+        )
+
+        self.client.force_authenticate(self.player)
+
+        url = f"/api/campaigns/{self.campaign.id}/rules/{rule.id}/"
+
+        response = self.client.delete(url)
+
         self.assertEqual(response.status_code, 403)
