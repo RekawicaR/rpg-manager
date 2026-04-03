@@ -104,6 +104,11 @@ class CampaignSourcesView(APIView):
     """Get and replace campaign sources (non-standard operation)"""
     permission_classes = [IsAuthenticated]
 
+    def get_permissions(self):
+        if self.request.method == "PUT":
+            return [IsAuthenticated(), IsCampaignDM()]
+        return [IsAuthenticated(), IsCampaignMember()]
+
     def get_campaign(self, campaign_id):
         return get_object_or_404(
             Campaign.objects.filter(members__user=self.request.user),
@@ -112,17 +117,13 @@ class CampaignSourcesView(APIView):
 
     def get(self, request, campaign_id):
         campaign = self.get_campaign(campaign_id)
+        self.check_object_permissions(request, campaign)
         sources = campaign.sources.all()
         return Response(SourceSerializer(sources, many=True).data)
 
     def put(self, request, campaign_id):
         campaign = self.get_campaign(campaign_id)
-
-        if not IsCampaignDM().has_object_permission(request, self, campaign):
-            return Response(
-                {"detail": "Only campaign DM can update sources"},
-                status=status.HTTP_403_FORBIDDEN
-            )
+        self.check_object_permissions(request, campaign)
 
         serializer = CampaignSourceUpdateSerializer(
             instance=campaign,
