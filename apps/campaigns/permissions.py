@@ -33,5 +33,5 @@ class IsCampaignMember(BasePermission):
             return False
         return CampaignMembership.objects.filter(
             user=request.user,
-            campaign=obj
+            campaign=campaign
         ).exists()
