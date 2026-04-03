@@ -4,6 +4,78 @@ from apps.compendium.models.base_compendium_item import BaseCompendiumItem
 from apps.compendium.choices import TimeUnit, MagicSchool, DistanceUnit, AreaType
 
 
+def validate_spell_rules(data):
+    errors = {}
+
+    casting_type = data.get("casting_type")
+    casting_value = data.get("casting_value")
+    casting_unit = data.get("casting_unit")
+
+    duration_type = data.get("duration_type")
+    duration_value = data.get("duration_value")
+    duration_unit = data.get("duration_unit")
+
+    range_type = data.get("range_type")
+    range_value = data.get("range_value")
+    range_unit = data.get("range_unit")
+
+    range_area_type = data.get("range_area_type")
+    range_area_value = data.get("range_area_value")
+    range_area_unit = data.get("range_area_unit")
+
+    concentration = data.get("concentration")
+
+    if casting_type == Spell.CastingType.TIME:
+        if casting_value is None:
+            errors["casting_value"] = "Required when casting_type is TIME"
+        if casting_unit is None:
+            errors["casting_unit"] = "Required when casting_type is TIME"
+    else:
+        if casting_value is not None:
+            errors["casting_value"] = "Only allowed when casting_type is TIME"
+        if casting_unit is not None:
+            errors["casting_unit"] = "Only allowed when casting_type is TIME"
+
+    if duration_type == Spell.DurationType.TIME:
+        if duration_value is None:
+            errors["duration_value"] = "Required when duration_type is TIME"
+        if duration_unit is None:
+            errors["duration_unit"] = "Required when duration_type is TIME"
+    else:
+        if duration_value is not None:
+            errors["duration_value"] = "Only allowed when duration_type is TIME"
+        if duration_unit is not None:
+            errors["duration_unit"] = "Only allowed when duration_type is TIME"
+
+    if range_type == Spell.RangeType.DISTANCE:
+        if range_value is None:
+            errors["range_value"] = "Required when range_type is DISTANCE"
+        if range_unit is None:
+            errors["range_unit"] = "Required when range_type is DISTANCE"
+    else:
+        if range_value is not None:
+            errors["range_value"] = "Only allowed when range_type is DISTANCE"
+        if range_unit is not None:
+            errors["range_unit"] = "Only allowed when range_type is DISTANCE"
+
+    if range_area_type:
+        if range_area_value is None:
+            errors["range_area_value"] = "Required when range_area_type is set"
+        if range_area_unit is None:
+            errors["range_area_unit"] = "Required when range_area_type is set"
+    else:
+        if range_area_value is not None:
+            errors["range_area_value"] = "Only allowed when range_area_type is set"
+        if range_area_unit is not None:
+            errors["range_area_unit"] = "Only allowed when range_area_type is set"
+
+    if duration_type == Spell.DurationType.INSTANT and concentration:
+        errors["concentration"] = "Instant spells cannot require concentration"
+
+    if errors:
+        raise ValidationError(errors)
+
+
 class Spell(BaseCompendiumItem):
 
     class SpellLevel(models.IntegerChoices):
@@ -114,62 +186,20 @@ class Spell(BaseCompendiumItem):
     )
 
     def clean(self):
-        errors = {}
-
-        # -------- CASTING --------
-        if self.casting_type == self.CastingType.TIME:
-            if self.casting_value is None:
-                errors["casting_value"] = "Required when casting_type is TIME"
-            if self.casting_unit is None:
-                errors["casting_unit"] = "Required when casting_type is TIME"
-        else:
-            if self.casting_value is not None:
-                errors["casting_value"] = "Only allowed when casting_type is TIME"
-            if self.casting_unit is not None:
-                errors["casting_unit"] = "Only allowed when casting_type is TIME"
-
-        # -------- DURATION --------
-        if self.duration_type == self.DurationType.TIME:
-            if self.duration_value is None:
-                errors["duration_value"] = "Required when duration_type is TIME"
-            if self.duration_unit is None:
-                errors["duration_unit"] = "Required when duration_type is TIME"
-        else:
-            if self.duration_value is not None:
-                errors["duration_value"] = "Only allowed when duration_type is TIME"
-            if self.duration_unit is not None:
-                errors["duration_unit"] = "Only allowed when duration_type is TIME"
-
-        # -------- RANGE (DISTANCE) --------
-        if self.range_type == self.RangeType.DISTANCE:
-            if self.range_value is None:
-                errors["range_value"] = "Required when range_type is DISTANCE"
-            if self.range_unit is None:
-                errors["range_unit"] = "Required when range_type is DISTANCE"
-        else:
-            if self.range_value is not None:
-                errors["range_value"] = "Only allowed when range_type is DISTANCE"
-            if self.range_unit is not None:
-                errors["range_unit"] = "Only allowed when range_type is DISTANCE"
-
-        # -------- AREA --------
-        if self.range_area_type:
-            if self.range_area_value is None:
-                errors["range_area_value"] = "Required when range_area_type is set"
-            if self.range_area_unit is None:
-                errors["range_area_unit"] = "Required when range_area_type is set"
-        else:
-            if self.range_area_value is not None:
-                errors["range_area_value"] = "Only allowed when range_area_type is set"
-            if self.range_area_unit is not None:
-                errors["range_area_unit"] = "Only allowed when range_area_type is set"
-
-        # -------- LOGICAL VALIDATIONS --------
-
-        # concentration makes no sense for instant spells
-        if self.duration_type == self.DurationType.INSTANT and self.concentration:
-            errors["concentration"] = "Instant spells cannot require concentration"
-
-        # -------- FINAL --------
-        if errors:
-            raise ValidationError(errors)
+        validate_spell_rules(
+            {
+                "casting_type": self.casting_type,
+                "casting_value": self.casting_value,
+                "casting_unit": self.casting_unit,
+                "duration_type": self.duration_type,
+                "duration_value": self.duration_value,
+                "duration_unit": self.duration_unit,
+                "range_type": self.range_type,
+                "range_value": self.range_value,
+                "range_unit": self.range_unit,
+                "range_area_type": self.range_area_type,
+                "range_area_value": self.range_area_value,
+                "range_area_unit": self.range_area_unit,
+                "concentration": self.concentration,
+            }
+        )
