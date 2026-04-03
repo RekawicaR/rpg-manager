@@ -185,6 +185,13 @@ class Spell(BaseCompendiumItem):
         related_name="spells"
     )
 
+    class Meta:
+        indexes = [
+            models.Index(fields=["name"], name="comp_spell_name_idx"),
+            models.Index(fields=["spell_level"], name="comp_spell_level_idx"),
+            models.Index(fields=["school"], name="comp_spell_school_idx"),
+        ]
+
     def clean(self):
         validate_spell_rules(
             {

@@ -93,11 +93,95 @@ class SpellAPITests(APITestCase):
         response = self.client.get(self.list_url)
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]["id"], self.spell.id)
-        self.assertIn("name", response.data[0])
-        self.assertNotIn("source", response.data[0])
-        self.assertNotIn("description", response.data[0])
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(response.data["results"][0]["id"], self.spell.id)
+        self.assertIn("name", response.data["results"][0])
+        self.assertNotIn("source", response.data["results"][0])
+        self.assertNotIn("description", response.data["results"][0])
+
+    def test_list_spells_is_paginated(self):
+        for index in range(25):
+            spell = Spell.objects.create(
+                name=f"Spell {index:02d}",
+                source=self.source,
+                spell_level=1,
+                casting_type=Spell.CastingType.ACTION,
+                range_type=Spell.RangeType.DISTANCE,
+                range_value=30,
+                range_unit="FT",
+                duration_type=Spell.DurationType.INSTANT,
+                concentration=False,
+                ritual=False,
+                verbal_component=True,
+                somatic_component=False,
+                material_component="",
+                school="ABJ",
+                description="Test spell",
+            )
+            spell.classes.add(self.wizard)
+
+        response = self.client.get(self.list_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["count"], 26)
+        self.assertEqual(len(response.data["results"]), 20)
+        self.assertIsNotNone(response.data["next"])
+
+    def test_list_spells_supports_search(self):
+        other_spell = Spell.objects.create(
+            name="Bless",
+            source=self.source,
+            spell_level=1,
+            casting_type=Spell.CastingType.ACTION,
+            range_type=Spell.RangeType.DISTANCE,
+            range_value=30,
+            range_unit="FT",
+            duration_type=Spell.DurationType.TIME,
+            duration_value=1,
+            duration_unit="MINUTE",
+            concentration=True,
+            ritual=False,
+            verbal_component=True,
+            somatic_component=True,
+            material_component="A sprinkling of holy water",
+            school="ENCH",
+            description="You bless up to three creatures.",
+        )
+        other_spell.classes.add(self.cleric)
+
+        response = self.client.get(self.list_url, {"search": "fire"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["name"], "Fireball")
+
+    def test_list_spells_supports_ordering(self):
+        lower_level_spell = Spell.objects.create(
+            name="Bless",
+            source=self.source,
+            spell_level=1,
+            casting_type=Spell.CastingType.ACTION,
+            range_type=Spell.RangeType.DISTANCE,
+            range_value=30,
+            range_unit="FT",
+            duration_type=Spell.DurationType.TIME,
+            duration_value=1,
+            duration_unit="MINUTE",
+            concentration=True,
+            ritual=False,
+            verbal_component=True,
+            somatic_component=True,
+            material_component="A sprinkling of holy water",
+            school="ENCH",
+            description="You bless up to three creatures.",
+        )
+        lower_level_spell.classes.add(self.cleric)
+
+        response = self.client.get(self.list_url, {"ordering": "-spell_level"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["results"][0]["name"], "Fireball")
 
     def test_retrieve_spell_is_public_and_uses_detail_serializer(self):
         response = self.client.get(self.detail_url)
