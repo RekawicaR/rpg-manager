@@ -34,9 +34,6 @@ class CampaignSourceUpdateSerializer(serializers.Serializer):
         many=True
     )
 
-    def create(self, validated_data):
-        raise NotImplementedError
-
     def update(self, instance, validated_data):
         sources = validated_data["source_ids"]
 

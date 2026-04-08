@@ -74,15 +74,17 @@ and flexible source management for campaigns.
 ### Campaigns
 | Method | Endpoint                               | Description                             |
 | ------ | -------------------------------------- | --------------------------------------- |
-| POST   | /api/campaigns/create/                 | Create a new campaign (user becomes DM) |
+| POST   | /api/campaigns/                        | Create a new campaign (user becomes DM) |
 | GET    | /api/campaigns/                        | List user campaigns                     |
-| POST   | /api/campaigns/{id}/invite/            | Generate invite link (DM only)          |
-| POST   | /api/campaigns/invites/{token}/accept/ | Join campaign via invite                |
 | GET    | /api/campaigns/{id}/                   | Retrieve campaign details (members)     |
 | PATCH  | /api/campaigns/{id}/                   | Update campaign (DM only)               |
 | DELETE | /api/campaigns/{id}/                   | Delete campaign (DM only)               |
+| POST   | /api/campaigns/{id}/invite/            | Generate invite link (DM only)          |
+| POST   | /api/campaigns/invites/{token}/accept/ | Join campaign via invite                |
 | GET    | /api/campaigns/{id}/sources/           | List allowed Sources for campaign       |
 | PUT    | /api/campaigns/{id}/sources/           | Update allowed Sources (DM only)        |
+| GET 	| /api/campaigns/{campaign_id}/rules/ 	  | List campaign item rules                |
+| POST 	| /api/campaigns/{campaign_id}/rules/ 	  | Create or update a rule, DM only        |
 
 ---
 
