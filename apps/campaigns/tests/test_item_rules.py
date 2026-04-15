@@ -1,4 +1,5 @@
 from django.contrib.contenttypes.models import ContentType
+from django.urls import reverse
 from apps.campaigns.models import CampaignItemRule
 from apps.campaigns.tests.base import CampaignAPITestCase
 from apps.compendium.models.source import Source
@@ -27,13 +28,16 @@ class CampaignItemRuleTests(CampaignAPITestCase):
             description="Boom",
         )
         self.content_type = ContentType.objects.get_for_model(Spell)
-        self.list_url = f"/api/campaigns/{self.campaign.id}/rules/"
+        self.rules_url = reverse(
+            "campaign-rules",
+            kwargs={"campaign_id": self.campaign.id}
+        )
 
     def test_create_rule_as_dm(self):
         self.authenticate(self.dm)
 
         response = self.client.post(
-            self.list_url,
+            self.rules_url,
             {
                 "content_type": "spell",
                 "object_id": self.spell.id,
@@ -51,7 +55,7 @@ class CampaignItemRuleTests(CampaignAPITestCase):
         self.authenticate(self.player)
 
         response = self.client.post(
-            self.list_url,
+            self.rules_url,
             {
                 "content_type": "spell",
                 "object_id": self.spell.id,
@@ -67,7 +71,7 @@ class CampaignItemRuleTests(CampaignAPITestCase):
         self.authenticate(self.outsider)
 
         response = self.client.post(
-            self.list_url,
+            self.rules_url,
             {
                 "content_type": "spell",
                 "object_id": self.spell.id,
@@ -83,7 +87,7 @@ class CampaignItemRuleTests(CampaignAPITestCase):
         self.authenticate(self.dm)
 
         response = self.client.post(
-            self.list_url,
+            self.rules_url,
             {
                 "content_type": "invalid",
                 "object_id": self.spell.id,
@@ -99,7 +103,7 @@ class CampaignItemRuleTests(CampaignAPITestCase):
         self.authenticate(self.dm)
 
         response = self.client.post(
-            self.list_url,
+            self.rules_url,
             {
                 "content_type": "spell",
                 "object_id": 9999,
@@ -115,7 +119,7 @@ class CampaignItemRuleTests(CampaignAPITestCase):
         self.authenticate(self.dm)
 
         response = self.client.post(
-            self.list_url,
+            self.rules_url,
             {
                 "content_type": "spell",
                 "object_id": self.spell.id,
@@ -137,7 +141,7 @@ class CampaignItemRuleTests(CampaignAPITestCase):
         self.authenticate(self.dm)
 
         response = self.client.post(
-            self.list_url,
+            self.rules_url,
             {
                 "content_type": "spell",
                 "object_id": self.spell.id,
@@ -159,7 +163,7 @@ class CampaignItemRuleTests(CampaignAPITestCase):
         )
         self.authenticate(self.player)
 
-        response = self.client.get(self.list_url)
+        response = self.client.get(self.rules_url)
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data), 1)
@@ -167,7 +171,7 @@ class CampaignItemRuleTests(CampaignAPITestCase):
     def test_outsider_cannot_list_rules(self):
         self.authenticate(self.outsider)
 
-        response = self.client.get(self.list_url)
+        response = self.client.get(self.rules_url)
 
         self.assertEqual(response.status_code, 403)
 
@@ -181,7 +185,10 @@ class CampaignItemRuleTests(CampaignAPITestCase):
         self.authenticate(self.dm)
 
         response = self.client.delete(
-            f"/api/campaigns/{self.campaign.id}/rules/{rule.id}/"
+            reverse(
+                "campaign-rule-delete",
+                kwargs={"campaign_id": self.campaign.id, "rule_id": rule.id}
+            )
         )
 
         self.assertEqual(response.status_code, 204)
@@ -197,7 +204,10 @@ class CampaignItemRuleTests(CampaignAPITestCase):
         self.authenticate(self.player)
 
         response = self.client.delete(
-            f"/api/campaigns/{self.campaign.id}/rules/{rule.id}/"
+            reverse(
+                "campaign-rule-delete",
+                kwargs={"campaign_id": self.campaign.id, "rule_id": rule.id}
+            )
         )
 
         self.assertEqual(response.status_code, 403)
@@ -212,7 +222,10 @@ class CampaignItemRuleTests(CampaignAPITestCase):
         self.authenticate(self.outsider)
 
         response = self.client.delete(
-            f"/api/campaigns/{self.campaign.id}/rules/{rule.id}/"
+            reverse(
+                "campaign-rule-delete",
+                kwargs={"campaign_id": self.campaign.id, "rule_id": rule.id}
+            )
         )
 
         self.assertEqual(response.status_code, 403)
