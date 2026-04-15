@@ -4,6 +4,8 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import ValidationError
 from rest_framework.views import APIView
+from rest_framework import filters
+from rest_framework.pagination import PageNumberPagination
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.urls import reverse
@@ -12,6 +14,10 @@ from .permissions import IsCampaignDM, IsCampaignMember
 from .models import Campaign, CampaignMembership, CampaignInvite, CampaignItemRule
 from .serializers import CampaignSerializer, CampaignSourceUpdateSerializer, CampaignItemRuleCreateSerializer, CampaignItemRuleSerializer
 from apps.compendium.serializers.source import SourceSerializer
+from apps.compendium.serializers.spell import SpellListSerializer
+from apps.compendium.models.spell import Spell
+from apps.compendium.views.spell import SpellViewSet
+from apps.compendium.services import get_allowed_compendium_items_for_campaign
 
 
 class CampaignViewSet(ModelViewSet):
@@ -165,3 +171,22 @@ class CampaignItemRuleDeleteView(generics.DestroyAPIView):
     def get_queryset(self):
         campaign = get_object_or_404(Campaign, id=self.kwargs["campaign_id"])
         return CampaignItemRule.objects.filter(campaign=campaign)
+
+
+class CampaignSpellListView(generics.ListAPIView):
+
+    serializer_class = SpellListSerializer
+    permission_classes = [IsAuthenticated, IsCampaignMember]
+    pagination_class = SpellViewSet.pagination_class
+    filter_backends = SpellViewSet.filter_backends
+    search_fields = SpellViewSet.search_fields
+    ordering_fields = SpellViewSet.ordering_fields
+    ordering = SpellViewSet.ordering
+
+    def get_campaign(self):
+        return get_object_or_404(Campaign, id=self.kwargs["campaign_id"])
+
+    def get_queryset(self):
+        campaign = self.get_campaign()
+        self.check_object_permissions(self.request, campaign)
+        return get_allowed_compendium_items_for_campaign(campaign, Spell)

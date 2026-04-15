@@ -6,7 +6,8 @@ from .views import (
     CampaignAcceptInviteView,
     CampaignSourcesView,
     CampaignItemRuleListCreateView,
-    CampaignItemRuleDeleteView
+    CampaignItemRuleDeleteView,
+    CampaignSpellListView
 )
 
 router = DefaultRouter()
@@ -23,4 +24,6 @@ urlpatterns = router.urls + [
          CampaignItemRuleListCreateView.as_view(), name="campaign-rules"),
     path("<int:campaign_id>/rules/<int:rule_id>/",
          CampaignItemRuleDeleteView.as_view(), name="campaign-rule-delete"),
+    path("<int:campaign_id>/spells/",
+         CampaignSpellListView.as_view(), name="campaign-spells")
 ]
