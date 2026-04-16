@@ -1,3 +1,5 @@
+![CI](https://github.com/RekawicaR/rpg-manager/actions/workflows/ci.yml/badge.svg)
+
 # RPG Campaign Manager API
 
 A Django REST API project for managing Dungeons & Dragons campaigns.  
@@ -35,7 +37,7 @@ and flexible source management for campaigns.
    POSTGRES_DB=rpg_campaign_manager
    POSTGRES_USER=rpg_user
    POSTGRES_PASSWORD=rpg_password
-   POSTGRES_HOST=localhost
+   POSTGRES_HOST=db
    POSTGRES_PORT=5432
    ```
 3. Run the server:
@@ -49,9 +51,11 @@ and flexible source management for campaigns.
 
 ### Core
 
-| Method | Endpoint     | Description        |
-| ------ | ------------ | ------------------ |
-| GET    | /api/health/ | Returns API status |
+| Method | Endpoint     | Description               |
+| ------ | ------------ | ------------------------- |
+| GET    | /api/health/ | Returns API status        |
+| GET    | /api/schema/ | OpenAPI 3 schema          |
+| GET    | /api/docs/   | Swagger API documentation |
 
 
 ### Auth

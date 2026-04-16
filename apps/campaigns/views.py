@@ -4,11 +4,10 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import ValidationError
 from rest_framework.views import APIView
-from rest_framework import filters
-from rest_framework.pagination import PageNumberPagination
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.urls import reverse
+from drf_spectacular.utils import extend_schema
 from datetime import timedelta
 from .permissions import IsCampaignDM, IsCampaignMember
 from .models import Campaign, CampaignMembership, CampaignInvite, CampaignItemRule
@@ -104,12 +103,19 @@ class CampaignSourcesView(APIView):
             id=campaign_id
         )
 
+    @extend_schema(
+        responses={200: SourceSerializer(many=True)}
+    )
     def get(self, request, campaign_id):
         campaign = self.get_campaign(campaign_id)
         self.check_object_permissions(request, campaign)
         sources = campaign.sources.all()
         return Response(SourceSerializer(sources, many=True).data)
 
+    @extend_schema(
+        request=CampaignSourceUpdateSerializer,
+        responses={200: SourceSerializer(many=True)}
+    )
     def put(self, request, campaign_id):
         campaign = self.get_campaign(campaign_id)
         self.check_object_permissions(request, campaign)
@@ -137,6 +143,9 @@ class CampaignItemRuleListCreateView(APIView):
             return [IsAuthenticated(), IsCampaignDM()]
         return [IsAuthenticated(), IsCampaignMember()]  # GET
 
+    @extend_schema(
+        responses={200: CampaignItemRuleSerializer}
+    )
     def get(self, request, campaign_id):
         campaign = self.get_campaign(campaign_id)
         self.check_object_permissions(request, campaign)
@@ -145,6 +154,10 @@ class CampaignItemRuleListCreateView(APIView):
             CampaignItemRuleSerializer(rules, many=True).data
         )
 
+    @extend_schema(
+        request=CampaignItemRuleCreateSerializer,
+        responses={201: CampaignItemRuleSerializer}
+    )
     def post(self, request, campaign_id):
         campaign = self.get_campaign(campaign_id)
         self.check_object_permissions(request, campaign)
