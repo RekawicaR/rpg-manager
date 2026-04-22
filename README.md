@@ -134,7 +134,6 @@ The system is designed around a flexible content management approach:
    - Repeated join → `200 OK` + joined == `False`
 
 ### Spells
-- Spell validation rules are shared between the model and serializer
 - API validation covers casting, duration, range, area, and concentration consistency
 - Spell list and detail are public
 - Spell write operations are restricted to moderators
