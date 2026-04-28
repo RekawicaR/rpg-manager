@@ -1,3 +1,5 @@
+![CI](https://github.com/RekawicaR/rpg-manager/actions/workflows/ci.yml/badge.svg)
+
 # RPG Campaign Manager API
 
 A Django REST API project for managing Dungeons & Dragons campaigns.  
@@ -27,13 +29,7 @@ and flexible source management for campaigns.
    git clone https://github.com/RekawicaR/rpg-manager.git
    cd rpg-manager
    ```
-2. Create a virtual environment and install dependencies:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate
-   pip install -r requirements.txt
-   ```
-3. Set up environment variables in .env file (example):
+2. Set up environment variables in .env file (example):
    ```
    SECRET_KEY=dev-secret-key
    DEBUG=True
@@ -41,16 +37,12 @@ and flexible source management for campaigns.
    POSTGRES_DB=rpg_campaign_manager
    POSTGRES_USER=rpg_user
    POSTGRES_PASSWORD=rpg_password
-   POSTGRES_HOST=localhost
+   POSTGRES_HOST=db
    POSTGRES_PORT=5432
    ```
-4. Run migrations: (this assumes the postgres database is already configured)
+3. Run the server:
    ```
-   python manage.py migrate
-   ```
-5. Run the server:
-   ```
-   python manage.py runserver
+   docker compose up
    ```
 
 ---
@@ -59,9 +51,11 @@ and flexible source management for campaigns.
 
 ### Core
 
-| Method | Endpoint     | Description        |
-| ------ | ------------ | ------------------ |
-| GET    | /api/health/ | Returns API status |
+| Method | Endpoint     | Description               |
+| ------ | ------------ | ------------------------- |
+| GET    | /api/health/ | Returns API status        |
+| GET    | /api/schema/ | OpenAPI 3 schema          |
+| GET    | /api/docs/   | Swagger API documentation |
 
 
 ### Auth
@@ -86,6 +80,7 @@ and flexible source management for campaigns.
 | PUT    | /api/campaigns/{id}/sources/           | Update allowed Sources (DM only)        |
 | GET 	| /api/campaigns/{campaign_id}/rules/ 	  | List campaign item rules                |
 | POST 	| /api/campaigns/{campaign_id}/rules/ 	  | Create or update a rule, DM only        |
+| GET 	| /api/campaigns/{campaign_id}/spells/   | List allowed spells for campaign        |
 
 ### Spells
 | Method | Endpoint          | Description                     |
@@ -95,6 +90,22 @@ and flexible source management for campaigns.
 | POST 	| /api/spells/ 	  | Create a spell (moderator only) |
 | PATCH 	| /api/spells/{id}/ | Update a spell (moderator only) |
 | DELETE | /api/spells/{id}/ | Delete a spell (moderator only) |
+
+---
+
+## Architecture
+
+The system is designed around a flexible content management approach:
+
+- Campaign - controls access scope
+- Source - defines content origin (books, expansions)
+- Compendium - consists of content types (Spell, Class, etc.)
+- CampaignItemRule - fine-grained allow/block system using GenericForeignKey
+
+### Access logic
+- DM can choose which Sources are allowed in his Campaign
+- DM can also define CampaignItemRules to additionally allow or block specific Compendium elements
+- Players in Campaign can access only Compendium items that are allowed by Source or by CampaignItemRule
 
 ---
 
@@ -123,7 +134,6 @@ and flexible source management for campaigns.
    - Repeated join → `200 OK` + joined == `False`
 
 ### Spells
-- Spell validation rules are shared between the model and serializer
 - API validation covers casting, duration, range, area, and concentration consistency
 - Spell list and detail are public
 - Spell write operations are restricted to moderators
@@ -148,6 +158,7 @@ Tests currently cover:
 - Campaign CRUD and permissions
 - CampaignSource GET and PUT (DM update, member view, non-member forbidden)
 - Spell CRUD, filtering, pagination, and permissions
+- Access to spells in Campaign (only allowed Spells)
 
 ---
 
